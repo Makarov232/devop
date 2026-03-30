@@ -3,7 +3,7 @@ name: Feature Branch Quality Check and Notify
 on:
   pull_request:
     branches:
-      - dev  # Запуск при PR в ветку dev, как на схеме
+      - main  # Запуск при PR в ветку dev, как на схеме
 
 jobs:
   quality-check:
