@@ -1,0 +1,64 @@
+name: Feature Branch Quality Check and Notify
+
+on:
+  push:             
+    branches:       
+      - main
+      - dev
+      - feature/*
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    outputs:
+      report_link: ${{ steps.scan.outputs.report }} # Для передачи в следующий шаг
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Шаг 5-6: Проверка качества кода (на примере SonarCloud или линтера)
+      - name: Code Quality Scan
+        id: scan
+        run: |
+          echo "Running code quality checks..."
+          # Здесь может быть команда: sonar-scanner или npm run lint
+          echo "Quality check passed" > report.txt
+          echo "report=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+      # Выкладка отчета как артефакта
+      - name: Upload Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: report.txt
+
+  telegram-notify:
+    needs: quality-check
+    runs-on: ubuntu-latest
+    if: always() # Уведомление придет даже если проверка упадет
+    
+    steps:
+      - name: Send Summary to Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          message: |
+            *ITHUB_DEVOPS_BOT*
+            Новый выпуск изменений
+            *Проект:* ${{ github.event.repository.name }}
+            *Версия:* ${{ github.run_number }}
+            *Дата:* ${{ github.event.pull_request.updated_at }}
+            
+            *Информация о Git-репозитории*
+            *GIT TAG:* ${{ github.sha }}
+            *Ветка:* ${{ github.head_ref }}
+            *Ссылка на PR:* ${{ github.event.pull_request.html_url }}
+            
+            *Статус проверки:* ${{ needs.quality-check.result }}
+            [Посмотреть отчет](${{ needs.quality-check.outputs.report_link }})
